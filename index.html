@@ -59,7 +59,12 @@ body {
   letter-spacing: 0.5px;
 }
 
-.settings-toggle {
+.header-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.header-btn {
   background: none;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -70,7 +75,7 @@ body {
   transition: all 0.2s;
 }
 
-.settings-toggle:hover {
+.header-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -131,28 +136,68 @@ body {
   margin-top: 4px;
 }
 
+/* Chat History */
+.history {
+  display: none;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 20px;
+  max-height: 50vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.history.visible { display: block; }
+
+.history-item {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.history-item .role {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.history-item .role.user-role { color: var(--text-light); }
+.history-item .role.ai-role { color: var(--accent); }
+
+.history-item .msg-content {
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
 /* Main Card */
 .card {
-  flex: 1;
   background: var(--card);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 .writing-area {
-  flex: 1;
   display: flex;
   flex-direction: column;
   padding: 24px;
-  min-height: 0;
 }
 
 .writing-area textarea {
-  flex: 1;
   width: 100%;
   border: none;
   outline: none;
@@ -162,7 +207,7 @@ body {
   line-height: 1.8;
   color: var(--text);
   background: transparent;
-  min-height: 200px;
+  min-height: 180px;
 }
 
 .writing-area textarea::placeholder {
@@ -199,39 +244,6 @@ body {
 .send-btn:active { transform: translateY(0); }
 .send-btn:disabled { background: #d4d2cf; cursor: not-allowed; transform: none; }
 
-/* Response Area */
-.response {
-  display: none;
-  background: var(--card);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border);
-  padding: 24px;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-.response.visible { display: block; }
-
-.response-header {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--accent);
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.response-content {
-  font-size: 14px;
-  line-height: 1.8;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.response-content p { margin-bottom: 12px; }
-.response-content p:last-child { margin-bottom: 0; }
-
 /* Loading */
 .loading {
   display: inline-flex;
@@ -256,15 +268,6 @@ body {
   40% { opacity: 1; transform: scale(1.2); }
 }
 
-/* History */
-.history-divider {
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-light);
-  padding: 8px 0;
-  opacity: 0.6;
-}
-
 /* Mobile */
 @media (max-height: 700px) {
   body { padding: 12px; }
@@ -278,7 +281,10 @@ body {
 <div class="container">
   <div class="header">
     <h1>Fragment</h1>
-    <button class="settings-toggle" onclick="toggleSettings()">Settings</button>
+    <div class="header-btns">
+      <button class="header-btn" onclick="clearHistory()">New</button>
+      <button class="header-btn" onclick="toggleSettings()">Settings</button>
+    </div>
   </div>
 
   <div class="settings" id="settings">
@@ -293,6 +299,8 @@ body {
     </div>
   </div>
 
+  <div class="history" id="history"></div>
+
   <div class="card">
     <div class="writing-area">
       <textarea id="input" placeholder="write your fragment here..."></textarea>
@@ -301,11 +309,6 @@ body {
       <span class="char-count" id="charCount">0</span>
       <button class="send-btn" id="sendBtn" onclick="send()">Send</button>
     </div>
-  </div>
-
-  <div class="response" id="response">
-    <div class="response-header">Reply</div>
-    <div class="response-content" id="responseContent"></div>
   </div>
 </div>
 
@@ -361,6 +364,7 @@ function init() {
 
   const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
   messages = history;
+  renderHistory();
 
   document.getElementById('input').addEventListener('input', updateCount);
   document.getElementById('input').addEventListener('keydown', (e) => {
@@ -389,6 +393,26 @@ function updateCount() {
   document.getElementById('charCount').textContent = len;
 }
 
+function renderHistory() {
+  const historyDiv = document.getElementById('history');
+  if (messages.length === 0) {
+    historyDiv.classList.remove('visible');
+    historyDiv.innerHTML = '';
+    return;
+  }
+
+  historyDiv.classList.add('visible');
+  historyDiv.innerHTML = messages.map(msg => {
+    const isUser = msg.role === 'user';
+    const roleClass = isUser ? 'user-role' : 'ai-role';
+    const roleLabel = isUser ? 'You' : 'Reply';
+    const escaped = msg.content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="history-item"><div class="role ${roleClass}">${roleLabel}</div><div class="msg-content">${escaped}</div></div>`;
+  }).join('');
+
+  historyDiv.scrollTop = historyDiv.scrollHeight;
+}
+
 async function send() {
   const input = document.getElementById('input');
   const text = input.value.trim();
@@ -403,15 +427,14 @@ async function send() {
 
   const systemPrompt = document.getElementById('systemPrompt').value.trim();
   const sendBtn = document.getElementById('sendBtn');
-  const responseDiv = document.getElementById('response');
-  const responseContent = document.getElementById('responseContent');
 
   sendBtn.disabled = true;
   sendBtn.textContent = '...';
-  responseDiv.classList.add('visible');
-  responseContent.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
 
   messages.push({ role: 'user', content: text });
+  renderHistory();
+  input.value = '';
+  updateCount();
 
   const apiMessages = [];
   if (systemPrompt) {
@@ -444,12 +467,11 @@ async function send() {
 
     messages.push({ role: 'assistant', content: reply });
     localStorage.setItem(HISTORY_KEY, JSON.stringify(messages));
-
-    responseContent.textContent = reply;
-    input.value = '';
-    updateCount();
+    renderHistory();
   } catch (e) {
-    responseContent.textContent = `Error: ${e.message}`;
+    messages.pop();
+    messages.push({ role: 'assistant', content: `Error: ${e.message}` });
+    renderHistory();
     messages.pop();
   }
 
@@ -460,7 +482,7 @@ async function send() {
 function clearHistory() {
   messages = [];
   localStorage.removeItem(HISTORY_KEY);
-  document.getElementById('response').classList.remove('visible');
+  renderHistory();
 }
 
 init();
