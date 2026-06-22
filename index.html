@@ -102,6 +102,7 @@ body {
   letter-spacing: 0.5px;
 }
 
+.settings input[type="text"],
 .settings input[type="password"],
 .settings textarea {
   width: 100%;
@@ -116,6 +117,7 @@ body {
   transition: border-color 0.2s;
 }
 
+.settings input[type="text"]:focus,
 .settings input[type="password"]:focus,
 .settings textarea:focus {
   border-color: var(--accent);
@@ -294,6 +296,11 @@ body {
       <div class="settings-note">saved locally in browser</div>
     </div>
     <div class="settings-group">
+      <label>Model</label>
+      <input type="text" id="modelName" placeholder="deepseek-chat" oninput="saveSettings()">
+      <div class="settings-note">e.g. deepseek-chat, deepseek-v3.8, deepseek-v4-pro</div>
+    </div>
+    <div class="settings-group">
       <label>System Prompt</label>
       <textarea id="systemPrompt" oninput="saveSettings()"></textarea>
     </div>
@@ -360,6 +367,7 @@ let messages = [];
 function init() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
   document.getElementById('apiKey').value = saved.apiKey || '';
+  document.getElementById('modelName').value = saved.modelName || 'deepseek-chat';
   document.getElementById('systemPrompt').value = saved.systemPrompt || DEFAULT_PROMPT;
 
   const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
@@ -383,6 +391,7 @@ function toggleSettings() {
 function saveSettings() {
   const settings = {
     apiKey: document.getElementById('apiKey').value,
+    modelName: document.getElementById('modelName').value,
     systemPrompt: document.getElementById('systemPrompt').value
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -450,7 +459,7 @@ async function send() {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: document.getElementById('modelName').value.trim() || 'deepseek-chat',
         messages: apiMessages,
         temperature: 0.8,
         max_tokens: 2048
