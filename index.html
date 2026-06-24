@@ -138,6 +138,75 @@ body {
   margin-top: 4px;
 }
 
+.settings-row {
+  display: flex;
+  gap: 12px;
+}
+
+.settings-row .settings-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-wrap input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+.slider-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.slider-val {
+  min-width: 32px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a7a7a'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.settings select:focus {
+  border-color: var(--accent);
+}
+
 /* Chat History */
 .history {
   display: none;
@@ -300,6 +369,33 @@ body {
       <input type="text" id="modelName" placeholder="deepseek-chat" oninput="saveSettings()">
       <div class="settings-note">e.g. deepseek-chat, deepseek-v3.8, deepseek-v4-pro</div>
     </div>
+    <div class="settings-row">
+      <div class="settings-group">
+        <label>Temperature</label>
+        <div class="slider-wrap">
+          <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.8" oninput="updateSlider(this); saveSettings()">
+          <span class="slider-val" id="temperatureVal">0.8</span>
+        </div>
+        <div class="settings-note">higher = more creative</div>
+      </div>
+      <div class="settings-group">
+        <label>Top P</label>
+        <div class="slider-wrap">
+          <input type="range" id="topP" min="0" max="1" step="0.05" value="1" oninput="updateSlider(this); saveSettings()">
+          <span class="slider-val" id="topPVal">1.0</span>
+        </div>
+        <div class="settings-note">nucleus sampling</div>
+      </div>
+      <div class="settings-group">
+        <label>Effort</label>
+        <select id="effort" onchange="saveSettings()">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <div class="settings-note">reasoning effort</div>
+      </div>
+    </div>
     <div class="settings-group">
       <label>System Prompt</label>
       <textarea id="systemPrompt" oninput="saveSettings()"></textarea>
@@ -370,6 +466,15 @@ function init() {
   document.getElementById('modelName').value = saved.modelName || 'deepseek-chat';
   document.getElementById('systemPrompt').value = saved.systemPrompt || DEFAULT_PROMPT;
 
+  const tempEl = document.getElementById('temperature');
+  const topPEl = document.getElementById('topP');
+  const effortEl = document.getElementById('effort');
+  tempEl.value = saved.temperature ?? 0.8;
+  topPEl.value = saved.topP ?? 1;
+  effortEl.value = saved.effort || 'high';
+  updateSlider(tempEl);
+  updateSlider(topPEl);
+
   const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
   messages = history;
   renderHistory();
@@ -384,6 +489,11 @@ function init() {
   updateCount();
 }
 
+function updateSlider(el) {
+  const val = parseFloat(el.value);
+  document.getElementById(el.id + 'Val').textContent = val % 1 === 0 ? val.toFixed(1) : val;
+}
+
 function toggleSettings() {
   document.getElementById('settings').classList.toggle('open');
 }
@@ -392,7 +502,10 @@ function saveSettings() {
   const settings = {
     apiKey: document.getElementById('apiKey').value,
     modelName: document.getElementById('modelName').value,
-    systemPrompt: document.getElementById('systemPrompt').value
+    systemPrompt: document.getElementById('systemPrompt').value,
+    temperature: parseFloat(document.getElementById('temperature').value),
+    topP: parseFloat(document.getElementById('topP').value),
+    effort: document.getElementById('effort').value
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
@@ -461,7 +574,9 @@ async function send() {
       body: JSON.stringify({
         model: document.getElementById('modelName').value.trim() || 'deepseek-chat',
         messages: apiMessages,
-        temperature: 0.8,
+        temperature: parseFloat(document.getElementById('temperature').value),
+        top_p: parseFloat(document.getElementById('topP').value),
+        reasoning_effort: document.getElementById('effort').value,
         max_tokens: 2048
       })
     });
